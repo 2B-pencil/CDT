@@ -801,7 +801,7 @@ private:
     std::stack<TriInd> insertVertexInsideTriangle(VertInd v, TriInd iT);
     /// Returns indices of four resulting triangles
     std::stack<TriInd> insertVertexOnEdge(VertInd v, TriInd iT1, TriInd iT2);
-    array<TriInd, 2> trianglesAt(const V2d<T>& pos) const;
+    array<TriInd, 2> trianglesAt(const V2d<T>& pos);
     array<TriInd, 2>
     walkingSearchTrianglesAt(VertInd iV, VertInd startVertex) const;
     TriInd walkTriangles(VertInd startVertex, const V2d<T>& pos) const;

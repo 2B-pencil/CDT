@@ -193,6 +193,26 @@ template <typename T, typename TNearPointLocator>
 void Triangulation<T, TNearPointLocator>::finalizeTriangulation(
     const TriIndUSet& removedTriangles)
 {
+    std::vector<bool> toRemove(m_vertTris.size(), false);
+    for(const auto& tri : removedTriangles)
+    {
+        const Triangle& t = triangles[tri];
+        for(const auto& vert : t.vertices)
+        {
+            if(m_vertTris[vert] == tri)
+            {
+                toRemove[vert] = true;
+            }
+        }
+    }
+
+    for(size_t i = 0; i < m_vertTris.size(); ++i)
+    {
+        if(toRemove[i])
+        {
+            m_vertTris[i] = noNeighbor;
+        }
+    }
     m_vertTris = TriIndVec();
     // remove super-triangle
     if(m_superGeomType == SuperGeometryType::SuperTriangle)
@@ -1523,25 +1543,42 @@ std::stack<TriInd> Triangulation<T, TNearPointLocator>::insertVertexOnEdge(
 
 template <typename T, typename TNearPointLocator>
 array<TriInd, 2>
-Triangulation<T, TNearPointLocator>::trianglesAt(const V2d<T>& pos) const
+Triangulation<T, TNearPointLocator>::trianglesAt(const V2d<T>& pos)
 {
     array<TriInd, 2> out = {noNeighbor, noNeighbor};
-    for(TriInd i = TriInd(0); i < TriInd(triangles.size()); ++i)
+
+    tryInitNearestPointLocator();
+
+    // find the nearest point
+    VertInd startVertex = m_nearPtLocator.nearPoint(pos, vertices);
+    if(startVertex == noVertex)
     {
-        const Triangle& t = triangles[i];
-        const V2d<T>& v1 = vertices[t.vertices[0]];
-        const V2d<T>& v2 = vertices[t.vertices[1]];
-        const V2d<T>& v3 = vertices[t.vertices[2]];
-        const PtTriLocation::Enum loc = locatePointTriangle(pos, v1, v2, v3);
-        if(loc == PtTriLocation::Outside)
-            continue;
-        out[0] = i;
-        if(isOnEdge(loc))
-            out[1] = t.neighbors[edgeNeighbor(loc)];
         return out;
     }
-    handleException(
-        Error("No triangle was found at position", CDT_SOURCE_LOCATION));
+
+    TriInd iT = walkTriangles(startVertex, pos);
+    if(iT == noNeighbor)
+    {
+        return out; 
+    }
+
+    const Triangle& t = triangles[iT];
+    const V2d<T>& v1 = vertices[t.vertices[0]];
+    const V2d<T>& v2 = vertices[t.vertices[1]];
+    const V2d<T>& v3 = vertices[t.vertices[2]];
+    const PtTriLocation::Enum loc = locatePointTriangle(pos, v1, v2, v3);
+
+    if(loc == PtTriLocation::Outside)
+    {
+        return out; 
+    }
+
+    out[0] = iT;
+    if(isOnEdge(loc))
+    {
+        out[1] = t.neighbors[edgeNeighbor(loc)];
+    }
+
     return out;
 }
 
